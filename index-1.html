@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Island Generator</title>
+    <link rel="stylesheet" href="index.css">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/",
+    "three/": "https://esm.sh/three@^0.179.1/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="app">
+        <canvas id="c"></canvas>
+        <div class="controls">
+            <h1>Island Generator</h1>
+            <p>Upload FBX or OBJ rock models to procedurally generate an island shoreline.</p>
+            
+            <div class="axis-legend">
+                <p><span class="color-dot red"></span> X-Axis</p>
+                <p><span class="color-dot green"></span> Y-Axis (Up)</p>
+                <p><span class="color-dot blue"></span> Z-Axis</p>
+            </div>
+
+            <div class="input-group">
+                <label for="rock-model-input">Select Rock Models (.fbx, .obj)</label>
+                <input type="file" id="rock-model-input" accept=".fbx,.obj" multiple aria-label="Upload rock models">
+            </div>
+            <div id="file-count">No files selected.</div>
+            <button id="generate-button" disabled>Generate Island</button>
+
+            <div class="options-group">
+                <div class="option-item">
+                    <label for="island-radius-input">Island Radius</label>
+                    <div class="slider-container">
+                        <input type="range" id="island-radius-input" value="65" min="10" max="200" step="1">
+                        <span id="island-radius-value">65</span>
+                    </div>
+                </div>
+                <div class="option-item">
+                    <label for="shoreline-offset-input">Shoreline Offset</label>
+                    <div class="slider-container">
+                        <input type="range" id="shoreline-offset-input" value="3" min="1" max="20" step="1">
+                        <span id="shoreline-offset-value">3</span>
+                    </div>
+                </div>
+                <div class="option-item">
+                    <label for="contour-height-input">Base Height</label>
+                    <div class="slider-container">
+                        <input type="range" id="contour-height-input" value="5" min="-20" max="20" step="0.5">
+                        <span id="contour-height-value">5.0</span>
+                    </div>
+                </div>
+                <div class="option-item">
+                    <label for="noise-strength-input">Surface Noise Strength</label>
+                    <div class="slider-container">
+                        <input type="range" id="noise-strength-input" value="1.5" min="0" max="10" step="0.1">
+                        <span id="noise-strength-value">1.50</span>
+                    </div>
+                </div>
+                <div class="option-item">
+                    <label for="noise-scale-input">Surface Noise Scale</label>
+                    <div class="slider-container">
+                        <input type="range" id="noise-scale-input" value="0.05" min="0.01" max="0.5" step="0.005">
+                        <span id="noise-scale-value">0.050</span>
+                    </div>
+                </div>
+                <div class="option-item">
+                    <label for="surface-smoothing-input">Surface Smoothing</label>
+                    <div class="slider-container">
+                        <input type="range" id="surface-smoothing-input" value="2" min="0" max="10" step="1">
+                        <span id="surface-smoothing-value">2</span>
+                    </div>
+                </div>
+            </div>
+
+            <details class="texture-options" open>
+                <summary>Foliage</summary>
+                <div class="texture-group">
+                    <h3>Grass</h3>
+                    <div class="texture-input-group">
+                        <label>Model (.obj, .fbx)</label>
+                        <div class="file-input-container">
+                            <button type="button" id="grass-model-button">Choose File</button>
+                            <span class="file-name" id="grass-model-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="grass-model-input" class="file-input-hidden" accept=".obj,.fbx">
+                    </div>
+                    <div class="option-item">
+                        <label for="foliage-width-input">Foliage Band Width</label>
+                        <div class="slider-container">
+                            <input type="range" id="foliage-width-input" value="6" min="1" max="30" step="0.5">
+                            <span id="foliage-width-value">6.0</span>
+                        </div>
+                    </div>
+                    <div class="option-item">
+                        <label for="grass-density-input">Grass Density</label>
+                        <div class="slider-container">
+                            <input type="range" id="grass-density-input" value="100" min="0" max="500" step="10">
+                            <span id="grass-density-value">100</span>
+                        </div>
+                    </div>
+                     <div class="option-item">
+                        <label for="foliage-max-slope-input">Max Foliage Slope (°)</label>
+                        <div class="slider-container">
+                            <input type="range" id="foliage-max-slope-input" value="60" min="0" max="90" step="1">
+                            <span id="foliage-max-slope-value">60</span>
+                        </div>
+                    </div>
+                </div>
+            </details>
+
+            <details class="texture-options">
+                <summary>PBR Textures</summary>
+                <div class="texture-group">
+                    <h3>Sand Material</h3>
+                    <div class="texture-input-group">
+                        <label>Albedo</label>
+                        <div class="file-input-container">
+                            <button type="button" id="sand-albedo-button">Choose File</button>
+                            <span class="file-name" id="sand-albedo-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="sand-albedo-input" class="file-input-hidden" accept="image/*">
+                    </div>
+                    <div class="texture-input-group">
+                        <label>Normal</label>
+                         <div class="file-input-container">
+                            <button type="button" id="sand-normal-button">Choose File</button>
+                            <span class="file-name" id="sand-normal-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="sand-normal-input" class="file-input-hidden" accept="image/*">
+                    </div>
+                    <div class="texture-input-group">
+                        <label>Roughness</label>
+                         <div class="file-input-container">
+                            <button type="button" id="sand-roughness-button">Choose File</button>
+                            <span class="file-name" id="sand-roughness-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="sand-roughness-input" class="file-input-hidden" accept="image/*">
+                    </div>
+                </div>
+                <div class="texture-group">
+                    <h3>Rock Material</h3>
+                    <div class="texture-input-group">
+                        <label>Albedo</label>
+                        <div class="file-input-container">
+                            <button type="button" id="rock-albedo-button">Choose File</button>
+                            <span class="file-name" id="rock-albedo-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="rock-albedo-input" class="file-input-hidden" accept="image/*">
+                    </div>
+                    <div class="texture-input-group">
+                        <label>Normal</label>
+                        <div class="file-input-container">
+                            <button type="button" id="rock-normal-button">Choose File</button>
+                            <span class="file-name" id="rock-normal-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="rock-normal-input" class="file-input-hidden" accept="image/*">
+                    </div>
+                    <div class="texture-input-group">
+                        <label>Roughness</label>
+                        <div class="file-input-container">
+                            <button type="button" id="rock-roughness-button">Choose File</button>
+                            <span class="file-name" id="rock-roughness-filename">No file chosen</span>
+                        </div>
+                        <input type="file" id="rock-roughness-input" class="file-input-hidden" accept="image/*">
+                    </div>
+                </div>
+            </details>
+            
+            <details class="texture-options">
+                <summary>Foliage Pivot Coordinates</summary>
+                <div class="texture-group">
+                    <pre id="foliage-coordinates-list">No data yet. Click "Generate Island".</pre>
+                </div>
+            </details>
+
+        </div>
+        <div id="loading-overlay">
+            <div class="spinner"></div>
+            <p>Generating Island...</p>
+        </div>
+    </div>
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

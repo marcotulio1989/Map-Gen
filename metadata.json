@@ -1,0 +1,5 @@
+{
+  "name": "Jiber Jagging Procedural Island Generator",
+  "description": "Upload FBX or OBJ rock models to procedurally generate an island shoreline.",
+  "requestFramePermissions": []
+}
